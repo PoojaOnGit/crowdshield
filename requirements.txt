@@ -1,0 +1,14 @@
+# Backend API
+flask
+flask-cors
+python-dotenv
+
+# AI Model
+ultralytics
+torch
+
+# Computer Vision
+opencv-python
+
+# Realtime Messaging
+paho-mqtt
