@@ -11,7 +11,7 @@ const MapView = () => {
     const map = new mapboxgl.Map({
       container: mapContainer.current,
       style: "mapbox://styles/mapbox/dark-v11",
-      center: [77.5946, 12.9716], // Example coordinates
+      center: [73.7898, 19.9975], // Example coordinates
       zoom: 12,
     });
 
