@@ -1,0 +1,14 @@
+{
+  "alerts": [
+    { "type": "High Crowd Density", "location": "Downtown", "time": "2 mins ago" },
+    { "type": "Suspicious Activity", "location": "Railway Station", "time": "15 mins ago" },
+    { "type": "Medical Emergency", "location": "City Park", "time": "30 mins ago" }
+  ],
+  "density": [
+    { "time": "9AM", "density": 30 },
+    { "time": "10AM", "density": 45 },
+    { "time": "11AM", "density": 70 },
+    { "time": "12PM", "density": 95 },
+    { "time": "1PM", "density": 60 }
+  ]
+}
