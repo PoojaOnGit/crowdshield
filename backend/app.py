@@ -1,39 +1,112 @@
+from flask import Flask, jsonify
+from flask_cors import CORS
 import cv2
 from ultralytics import YOLO
+import numpy as np
+import threading
+import os
 
-# Load YOLOv8 model
-model = YOLO("yolo11n.pt")  # replace with your trained model
+app = Flask(__name__)
+CORS(app)  # Enable CORS for frontend requests
 
-# Video file path
-VIDEO_SOURCE = "crowd_video.mp4"
-cap = cv2.VideoCapture(VIDEO_SOURCE)
+# --------------------------
+# Video sources (use absolute paths if needed)
+# --------------------------
+CROWD_VIDEO = os.path.join(os.getcwd(), "crowd_video2.mp4")
+FIRE_VIDEO = os.path.join(os.getcwd(), "fire_video1.mp4")
 
-if not cap.isOpened():
-    print("Error: Could not open video file")
-    exit()
+# --------------------------
+# Initialize YOLO model on CPU
+# --------------------------
+device = "cpu"  # force CPU
+model = YOLO("yolo11n.pt").to(device)  # Replace with your trained model
 
-while True:
-    ret, frame = cap.read()
-    if not ret:
-        break  # End of video
+# --------------------------
+# Shared status dictionary
+# --------------------------
+status = {
+    "people_count": 0,
+    "fire_detected": False,
+    "recent_alerts": []
+}
 
-    # YOLO detection
-    results = model(frame, conf=0.05, iou=0.3, imgsz=1280)
+# --------------------------
+# Crowd detection thread
+# --------------------------
+def detect_crowd():
+    global status
+    cap = cv2.VideoCapture(CROWD_VIDEO)
+    if not cap.isOpened():
+        print(f"Error: Could not open {CROWD_VIDEO}")
+        return
 
-    # Annotate frame
-    annotated_frame = results[0].plot()
-    annotated_frame = cv2.cvtColor(annotated_frame, cv2.COLOR_RGB2BGR)
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            cap.set(cv2.CAP_PROP_POS_FRAMES, 0)  # loop video
+            continue
 
-    # Count people
-    people_count = sum(1 for box in results[0].boxes if results[0].names[int(box.cls)] == 'person')
-    cv2.putText(annotated_frame, f"People: {people_count}", (10,50),
-                cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), 2)
+        results = model(frame, conf=0.05, iou=0.3, imgsz=1280)
+        people_count = sum(
+            1 for box in results[0].boxes if results[0].names[int(box.cls)] == "person"
+        )
 
-    # Display
-    cv2.imshow("Crowd Detection", annotated_frame)
+        # Update status
+        status["people_count"] = people_count
+        if people_count > 50:
+            if "High Crowd" not in status["recent_alerts"]:
+                status["recent_alerts"].append("High Crowd")
+        else:
+            if "High Crowd" in status["recent_alerts"]:
+                status["recent_alerts"].remove("High Crowd")
 
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
+# --------------------------
+# Fire detection thread
+# --------------------------
+def detect_fire():
+    global status
+    cap = cv2.VideoCapture(FIRE_VIDEO)
+    if not cap.isOpened():
+        print(f"Error: Could not open {FIRE_VIDEO}")
+        return
 
-cap.release()
-cv2.destroyAllWindows()
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            cap.set(cv2.CAP_PROP_POS_FRAMES, 0)  # loop video
+            continue
+
+        hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+        lower = np.array([0, 150, 150])
+        upper = np.array([35, 255, 255])
+        mask = cv2.inRange(hsv, lower, upper)
+        fire_pixels = cv2.countNonZero(mask)
+
+        fire_detected = fire_pixels > 500
+        status["fire_detected"] = fire_detected
+
+        if fire_detected:
+            if "Fire Alert" not in status["recent_alerts"]:
+                status["recent_alerts"].append("Fire Alert")
+        else:
+            if "Fire Alert" in status["recent_alerts"]:
+                status["recent_alerts"].remove("Fire Alert")
+
+# --------------------------
+# Start detection threads
+# --------------------------
+threading.Thread(target=detect_crowd, daemon=True).start()
+threading.Thread(target=detect_fire, daemon=True).start()
+
+# --------------------------
+# API route
+# --------------------------
+@app.route("/detect")
+def get_status():
+    return jsonify(status)
+
+# --------------------------
+# Run Flask app
+# --------------------------
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000, debug=True)
