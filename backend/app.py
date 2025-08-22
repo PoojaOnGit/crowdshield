@@ -1,54 +1,39 @@
-from flask import Flask, request, jsonify
-from flask_cors import CORS
+import cv2
 from ultralytics import YOLO
-import os
 
-app = Flask(__name__)
-CORS(app)
+# Load YOLOv8 model
+model = YOLO("yolo11n.pt")  # replace with your trained model
 
-# Uploads relative to backend folder
-UPLOAD_FOLDER = "uploads"
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+# Video file path
+VIDEO_SOURCE = "crowd_video.mp4"
+cap = cv2.VideoCapture(VIDEO_SOURCE)
 
-# YOLO model
-model = YOLO("yolov8n.pt")  # pretrained, GPU if available
+if not cap.isOpened():
+    print("Error: Could not open video file")
+    exit()
 
-@app.route("/")
-def home():
-    return "CrowdShield YOLO API is running!"
+while True:
+    ret, frame = cap.read()
+    if not ret:
+        break  # End of video
 
-@app.route("/detect", methods=["POST"])
-def detect():
-    if "image" not in request.files:
-        return jsonify({"error": "No image uploaded"}), 400
-    
-    file = request.files["image"]
-    if file.filename == "":
-        return jsonify({"error": "No file selected"}), 400
+    # YOLO detection
+    results = model(frame, conf=0.05, iou=0.3, imgsz=1280)
 
-    # Save uploaded image
-    img_path = os.path.join(UPLOAD_FOLDER, file.filename)
-    file.save(img_path)
+    # Annotate frame
+    annotated_frame = results[0].plot()
+    annotated_frame = cv2.cvtColor(annotated_frame, cv2.COLOR_RGB2BGR)
 
-    # Run YOLO detection
-    results = model(img_path)
+    # Count people
+    people_count = sum(1 for box in results[0].boxes if results[0].names[int(box.cls)] == 'person')
+    cv2.putText(annotated_frame, f"People: {people_count}", (10,50),
+                cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), 2)
 
-    # Save results
-    save_path = os.path.join("runs", file.filename)
-    os.makedirs(os.path.dirname(save_path), exist_ok=True)
-    results.save(save_path)
+    # Display
+    cv2.imshow("Crowd Detection", annotated_frame)
 
-    # Prepare JSON response
-    output = []
-    for r in results:
-        for box in r.boxes.xyxy:  # x1, y1, x2, y2
-            output.append(box.tolist())
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
 
-    return jsonify({
-        "filename": file.filename,
-        "detections": output,
-        "message": "Detection complete!"
-    })
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+cap.release()
+cv2.destroyAllWindows()
