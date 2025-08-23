@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+  import React, { useEffect, useRef } from "react";
 import mapboxgl from "mapbox-gl";
 
 const token = import.meta.env.VITE_MAPBOX_TOKEN;
@@ -11,18 +11,18 @@ const MapView = () => {
     const map = new mapboxgl.Map({
       container: mapContainer.current,
       style: "mapbox://styles/mapbox/dark-v11",
-      center: [73.7898, 19.9975], // Example coordinates
+      center: [73.7898, 19.9975], // Nashik (lon, lat)
       zoom: 12,
     });
 
-    // Sample heatmap data
+    // Nashik heatmap data
     const heatmapData = {
       type: "FeatureCollection",
       features: [
-        { type: "Feature", properties: { density: 5 }, geometry: { type: "Point", coordinates: [77.5946, 12.9716] } },
-        { type: "Feature", properties: { density: 10 }, geometry: { type: "Point", coordinates: [77.6, 12.975] } },
-        { type: "Feature", properties: { density: 3 }, geometry: { type: "Point", coordinates: [77.59, 12.965] } },
-        { type: "Feature", properties: { density: 8 }, geometry: { type: "Point", coordinates: [77.585, 12.97] } },
+        { type: "Feature", properties: { density: 5 }, geometry: { type: "Point", coordinates: [73.7898, 19.9975] } },
+        { type: "Feature", properties: { density: 10 }, geometry: { type: "Point", coordinates: [73.792, 20.0] } },
+        { type: "Feature", properties: { density: 3 }, geometry: { type: "Point", coordinates: [73.785, 19.995] } },
+        { type: "Feature", properties: { density: 8 }, geometry: { type: "Point", coordinates: [73.793, 19.998] } },
       ],
     };
 
